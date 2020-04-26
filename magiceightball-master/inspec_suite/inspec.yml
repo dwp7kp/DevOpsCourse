@@ -1,0 +1,10 @@
+name: magiceightball-tests
+title: InSpec Profile
+maintainer: Daniel Prohaska
+copyright: Daniel Prohaska
+copyright_email: you@example.com
+license: New BSD License
+summary: Minimal InSpec compliance profile for magiceightball
+version: 0.0.1
+supports:
+  platform: os

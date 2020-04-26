@@ -1,0 +1,6 @@
+projectKey=magiceightball
+serverUrl=http://192.168.0.205:9000
+serverVersion=7.9.1.27448
+dashboardUrl=http://192.168.0.205:9000/dashboard?id=magiceightball
+ceTaskId=AXG0y2Gysq6iiLw7HQVH
+ceTaskUrl=http://192.168.0.205:9000/api/ce/task?id=AXG0y2Gysq6iiLw7HQVH

@@ -1,0 +1,90 @@
+kind: pipeline
+name: default
+
+steps:
+- name: test
+  image: 192.168.0.201:5000/nemonik/python:2.7.17
+  commands:
+  - pip install -r requirements.txt
+  - python magiceightball_unittest.py > unittest-report.out
+  - pip install pylint
+  - pylint magiceightball.py > pylint-report.out || true
+  - pip install coverage
+  - coverage run magiceightball_unittest.py > coverage-report.out
+  
+- name: sonarqube
+  image: 192.168.0.201:5000/nemonik/golang-sonarqube-scanner:4.0.0.1744
+  commands:
+    - sonar-scanner -D sonar.host.url=http://192.168.0.205:9000 -D sonar.projectKey=magiceightball -D sonar.projectName=magiceightball -D sonar.projectVersion=1.0 -D sonar.language=py -D sonar.sources=magiceightball.py -D sonar.python.xunit.reportPath=unittest-report.out -D sonar.python.pylint.reportPath=pylint-report.out -D sonar.python.coverage.reportPath=coverage-report.out
+
+- name: publish
+  image: plugins/docker
+  settings:
+    storage_driver: overlay
+    insecure: true
+    registry: 192.168.0.201:5000
+    repo: 192.168.0.201:5000/nemonik/magiceightball
+    force_tag: true
+    tags:
+    - latest
+
+- name: deploy
+  image: appleboy/drone-ssh
+  settings:
+    key:
+      from_secret: insecure_private_key
+    host: 192.168.0.10
+    port: 22
+    username: vagrant
+    command_timeout: 5m
+    script:
+    - docker stop magiceightball 2>/dev/null
+    - docker rm magiceightball 2>/dev/null
+    - docker rmi 192.168.0.201:5000/nemonik/magiceightball 2>/dev/null
+    - docker run -d --restart=always --name magiceightball --publish 5000:5000 192.168.0.201:5000/nemonik/magiceightball
+
+- name: inspec
+  image: appleboy/drone-ssh
+  settings:
+    key:
+      from_secret: insecure_private_key
+    host: 192.168.0.10
+    port: 22
+    username: vagrant
+    command_timeout: 5m
+    script:
+      - source /etc/profile
+      - WORK_DIR=`mktemp -d`
+      - cd $WORK_DIR
+      - git clone http://192.168.0.202/root/magiceightball.git
+      - cd magiceightball
+      - inspec exec --chef-license=accept-silent inspec_suite
+      - cd ..
+      - rm -Rf $WORK_DIR
+
+- name: selenium
+  image: 192.168.0.201:5000/nemonik/python:2.7.17
+  commands:
+  - export NO_PROXY=$NO_PROXY,$(python selenium-test/resolve.py firefox)
+  - export no_proxy=$no_proxy,$(python selenium-test/resolve.py firefox)
+  - cd selenium-test
+  - python -m pip install -r requirements.txt
+  - python test_magiceightball.py firefox http://192.168.0.10:5000
+
+- name: owasp-zaproxy
+  image: 192.168.0.201:5000/nemonik/zap2docker-stable:2.8.0
+  commands:
+  - zap-baseline.py -t http://192.168.0.10:5000 || true
+
+volumes:
+- name: shared_memory
+  host:
+    path: /dev/shm
+
+services:
+- name: firefox
+  image: 192.168.0.201:5000/nemonik/standalone-firefox:3.141
+  volumes:
+  - name: shared_memory
+    path: /dev/shm
+

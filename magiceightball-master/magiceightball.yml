@@ -1,0 +1,67 @@
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: magiceightball
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magiceightball-deployment
+  namespace: magiceightball
+  labels:
+    app: magiceightball
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: magiceightball
+  template:
+    metadata:
+      labels:
+        app: magiceightball
+    spec:
+      containers:
+      - name: magiceightball-container
+        image: 192.168.0.201:5000/nemonik/magiceightball:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 5000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: magiceightball-service
+  namespace: magiceightball
+spec:
+  ports:
+  - name: http
+    targetPort: http
+    port: 80
+  selector:
+    app: magiceightball
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: magiceightball-ingress
+  namespace: magiceightball
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /magiceightball
+        backend:
+          serviceName: magiceightball-service
+          servicePort: http
+
